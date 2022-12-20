@@ -5,13 +5,10 @@ import { shader as MSDFFrag } from './shaders/fontShader/MSDF_frag.js'
 import MSDFVer from './shaders/fontShader/MSDF_vertex.glsl?raw'
 import PlaneBufferTarget from './PlaneBufferTarget'
 
-import BasicFrag from './shaders/BasicFrag'
-import BasicVer from './shaders/BasicVer.glsl?raw'
-
 export default class Canvas {
   constructor() {
     this.renderer = new Renderer({
-      // alpha: true
+      alpha: true
     })
     this.gl = this.renderer.gl
 
@@ -24,9 +21,7 @@ export default class Canvas {
     this.coverRatio = { value: new Vec2() }
     this.onResize()
 
-    N.BM(this, ['update', 'onResize', 'onScroll'])
-
-
+    N.BM(this, ['update', 'onResize'])
 
     this.raf = new N.RafR(this.update)
     this.ro = new N.ROR(this.onResize)
@@ -34,16 +29,7 @@ export default class Canvas {
     this.init()
   }
   async init() {
-    this.bgMesh = new Mesh(this.gl, {
-      geometry: new Plane(this.gl, { width: this.size.width, height: this.size.height }),
-      program: new Program(this.gl, {
-        fragment: BasicFrag,
-        vertex: BasicVer,
-        detphTest: false,
-        depthWrite: false
-      })
-    })
-    this.bgMesh.setParent(this.scene)
+
     this.preloaderText = await this.createText('00')
     this.preloaderText.program.uniforms.uAlpha.value = 1
     this.preloaderTextBuffer = await this.createText('23')
@@ -51,75 +37,51 @@ export default class Canvas {
 
     this.post = new PlaneBufferTarget(this.gl, this.size)
 
-    this.addEventListener()
     this.post.init()
     this.raf.run()
     this.ro.on()
+    this.initAnimation()
   }
-  addEventListener() {
-    // document.addEventListener('wheel', this.onScroll)
+  initAnimation() {
     let tl = new N.TL()
     tl.from({
-      d: 2000,
+      d: 500,
       e: 'io3',
       update: t => {
-        if (t.prog < 0.5) {
-          this.post.mesh.program.uniforms.progE.value = N.Ease.io4(N.Clamp(t.prog * 2, 0, 1))
-        } else {
-          this.post.mesh.program.uniforms.progE.value = N.Ease.io4(1 - N.Clamp(-1 + t.prog * 2, 0, 1))
-        }
+        this.post.mesh.program.uniforms.progE.value = t.progE
+      }
+    })
+    tl.from({
+      d: 500,
+      delay: 500,
+      e: 'io3',
+      update: t => {
+        this.post.mesh.program.uniforms.progE.value = 1 - t.progE
+      }
+    })
+
+    tl.from({
+      d: 800,
+      delay: 0,
+      update: t => {
+        this.preloaderTextBuffer.program.uniforms.uAlpha.value = t.progE
       },
     })
     tl.from({
-      d: 2000,
+      d: 1000,
       delay: 0,
-      // e: 'i3',
       update: t => {
         this.preloaderText.program.uniforms.uAlpha.value = 1 - t.progE
-      }
-    })
-    tl.from({
-      d: 2000,
-      delay: 0,
-      // e: 'o3',
-      update: t => {
-        this.preloaderTextBuffer.program.uniforms.uAlpha.value = t.progE
-      }
-
-    })
-    tl.from({
-      delay: 2121,
-      d: 0,
-      p: [],
+      },
       cb: async _ => {
-        // this.preloaderTextBuffer.program.uniforms.uAlpha.value = 0
-        // this.preloaderText.program.uniforms.uAlpha.value = 1
         this.preloaderText.setParent(null)
         this.preloaderText = null
         this.preloaderText = this.preloaderTextBuffer
         this.preloaderTextBuffer = await this.createText(N.ZL(N.Rand.range(0, 99, 0)))
-        // this.preloaderTextBuffer.position.x += N.Rand.range(-0.5, 0.5)
-        // this.preloaderTextBuffer.position.y += N.Rand.range(-0.5, 0.5)
-        // let randir = this.post.randomizeDir()
-        // this.preloaderTextBuffer.position.x += randir.value.x / 2
-        // this.preloaderTextBuffer.position.y += randir.value.y / 2
-
-
-
       }
     })
-    document.addEventListener('click', () => {
-
-      // tl.play()
-
-      setInterval(_ => tl.play(), 2200)
-    })
+    setInterval(_ => tl.play(), 2000)
   }
-
-  onScroll(e) {
-    this.scroll.target += e.deltaY / 100
-  }
-
 
   onResize() {
     this.renderer.setSize(window.innerWidth, window.innerHeight)
@@ -140,20 +102,15 @@ export default class Canvas {
       width: height * this.camera.aspect
     }
 
-    this.bgMesh && this.bgMesh.scale.set(this.size.width, this.size.height, 1)
-
     innerWidth > innerHeight ? this.coverRatio.value.set(innerHeight / innerWidth, 1) : this.coverRatio.value.set(1, innerWidth / innerHeight)
     this.post && this.post.onResize(this.size)
-
   }
   update(e) {
-
     this.renderer.render({
       scene: this.scene,
       camera: this.camera,
       target: this.post.target
     })
-    // this.post.mesh.program.uniforms.tMap.value = this.post.target.texture
 
     this.renderer.render({
       scene: this.post.mesh,
