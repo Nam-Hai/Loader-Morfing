@@ -1,0 +1,30 @@
+body {
+    // background-color: antiquewhite;
+    background-color: black;
+}
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    overflow: hidden;
+}
+.gallery {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    display: flex;
+    // column-gap: 2rem;
+    img {
+        height: 50rem;
+        opacity: 0;
+        width: 50rem;
+    }
+}
+
+canvas {
+    height: 100%;
+    width: 100%;
+}
