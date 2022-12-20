@@ -7,7 +7,14 @@ import { N } from './utils/namhai'
 const GALLERY = [
   '1.jpg',
   '2.jpg',
-  '3.jfif'
+  '3.jfif',
+  '4.jfif',
+  '5.jfif',
+  '6.jfif',
+  '7.jfif',
+  '8.jfif',
+  '9.jfif',
+  '10.jfif',
 ]
 const TEXTURES = []
 export default class Preloader {
