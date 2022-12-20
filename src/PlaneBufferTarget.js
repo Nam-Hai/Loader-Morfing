@@ -59,6 +59,7 @@ export default class PlaneBufferTarget {
     this.raf.run()
   }
   onResize(canvasSize) {
+    console.log('yooo');
     this.mesh.scale.set(canvasSize.width, canvasSize.height)
     innerWidth > innerHeight ? this.coverRatio.value.set(innerHeight / innerWidth, 1) : this.coverRatio.value.set(1, innerWidth / innerHeight)
     this.target.setSize(innerWidth, innerHeight)
