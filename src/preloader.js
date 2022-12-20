@@ -29,6 +29,8 @@ export default class Preloader {
     this.onResize(canvasSize)
   }
   async init() {
+    this.font = await (await fetch('fonts/Humane-SemiBold.json')).json();
+    this.fontTexture = await this.loadFontTexture()
     this.preloaderText = await this.createText('00')
     this.preloaderText.program.uniforms.uAlpha.value = 1
     this.preloaderTextBuffer = await this.createText('23')
@@ -38,15 +40,37 @@ export default class Preloader {
 
     this.load()
   }
+  async loadFontTexture() {
+    let texture = new Texture(this.gl, {
+      generateMipmaps: false
+    })
+    await new Promise(s => {
+      let image = new Image()
+      image.crossOrigin = 'anonymous'
+      image.src = 'fonts/Humane.png'
+      image.onload = () => {
+        texture.image = image
+        s()
+      }
+    })
+    return texture
+
+  }
 
   async load() {
     let count = 0
+    let lastCount = 0
 
-    let interval = setInterval(() => {
-      console.log('ooooooo');
-      this.animation(count)
-    }, 1500)
     await new Promise(async s => {
+      let interval = setInterval(async () => {
+        if (lastCount == count) return
+        lastCount = count
+        await this.animation(count)
+        if (count == GALLERY.length) {
+          clearInterval(interval)
+          s()
+        }
+      }, 1500)
       for (const src of GALLERY) {
         await new Promise(cb => {
           let image = new Image()
@@ -55,58 +79,57 @@ export default class Preloader {
           image.onload = () => {
             texture.image = image
             count++
-            console.log(count, count / GALLERY.length);
             TEXTURES.push(texture)
-            console.log({ TEXTURES });
             cb()
           }
           image.src = src
         })
       }
-      clearInterval(interval)
-      s()
     })
   }
   async animation(nextCount) {
-    console.log('animation');
-    this.preloaderTextBuffer = await this.createText(N.ZL(nextCount))
-    let tl = new N.TL()
-    tl.from({
-      d: 500,
-      e: 'io3',
-      update: t => {
-        this.post.mesh.program.uniforms.progE.value = t.progE
-      }
-    })
-    tl.from({
-      d: 500,
-      delay: 500,
-      e: 'io3',
-      update: t => {
-        this.post.mesh.program.uniforms.progE.value = 1 - t.progE
-      }
+    new Promise(async s => {
+      this.preloaderTextBuffer = await this.createText(N.ZL(nextCount))
+      let tl = new N.TL()
+      tl.from({
+        d: 500,
+        e: 'io3',
+        update: t => {
+          this.post.mesh.program.uniforms.progE.value = t.progE
+        }
+      })
+      tl.from({
+        d: 500,
+        delay: 500,
+        e: 'io3',
+        update: t => {
+          this.post.mesh.program.uniforms.progE.value = 1 - t.progE
+        }
+      })
+
+      tl.from({
+        d: 800,
+        delay: 0,
+        update: t => {
+          this.preloaderTextBuffer.program.uniforms.uAlpha.value = t.progE
+        },
+      })
+      tl.from({
+        d: 1000,
+        delay: 0,
+        update: t => {
+          this.preloaderText.program.uniforms.uAlpha.value = 1 - t.progE
+        },
+        cb: async _ => {
+          this.preloaderText.setParent(null)
+          this.preloaderText = null
+          this.preloaderText = this.preloaderTextBuffer
+          s()
+        }
+      })
+      tl.play()
     })
 
-    tl.from({
-      d: 800,
-      delay: 0,
-      update: t => {
-        this.preloaderTextBuffer.program.uniforms.uAlpha.value = t.progE
-      },
-    })
-    tl.from({
-      d: 1000,
-      delay: 0,
-      update: t => {
-        this.preloaderText.program.uniforms.uAlpha.value = 1 - t.progE
-      },
-      cb: async _ => {
-        this.preloaderText.setParent(null)
-        this.preloaderText = null
-        this.preloaderText = this.preloaderTextBuffer
-      }
-    })
-    tl.play()
   }
 
 
@@ -133,14 +156,6 @@ export default class Preloader {
     iDist.onload = () => (tDist.image = iDist)
     iDist.src = 'normal.jpg'
 
-    const font = await (await fetch('fonts/Humane-SemiBold.json')).json();
-    const texture = new Texture(this.gl, {
-      generateMipmaps: false,
-    });
-    const img = new Image();
-    img.onload = () => (texture.image = img);
-    img.src = 'fonts/Humane.png';
-
     const resolution = { value: new Vec2() }
     resolution.value.set(innerWidth, innerHeight)
     const program = new Program(this.gl, {
@@ -148,7 +163,7 @@ export default class Preloader {
       vertex: MSDFVer,
       fragment: MSDFFrag,
       uniforms: {
-        tMap: { value: texture },
+        tMap: { value: this.fontTexture },
         uAlpha: { value: 0 },
         coverRatio: { value: this.coverRatio }
       },
@@ -157,7 +172,7 @@ export default class Preloader {
       depthWrite: false,
     });
     const text = new Text({
-      font,
+      font: this.font,
       text: string,
       width: 4,
       align: 'center',
